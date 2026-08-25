@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -94,8 +94,45 @@ class MergeResult:
     written: List[str] = field(default_factory=list)
 
 
-def merge_bracket(paths: Sequence[str], options: Optional[MergeOptions] = None) -> MergeResult:
-    """Merge one bracket. The public entry point of the library."""
+@dataclass
+class MergedScene:
+    """The expensive half of a merge, cached so the cheap half can repeat.
+
+    Producing this means loading, aligning, linearising and merging every
+    frame -- seconds of work. Tone mapping and grading it afterwards costs
+    milliseconds. Keeping the two apart is what lets a GUI re-render on every
+    slider move without re-merging, and it costs the command line nothing.
+
+    Exactly one of ``radiance`` and ``fused`` is set. Exposure fusion never
+    builds a radiance map, so switching to or from it is a structural change
+    that needs a fresh :func:`merge_scene`, unlike every other display setting.
+    """
+
+    metas: List[FrameMeta]
+    reference: int
+    #: Linear radiance in reference-frame exposure units, before adjustments.
+    radiance: Optional[np.ndarray] = None
+    #: Display-referred fusion result, before adjustments.
+    fused: Optional[np.ndarray] = None
+    stats: Optional[merge_module.MergeStats] = None
+
+    @property
+    def is_fusion(self) -> bool:
+        return self.radiance is None
+
+    @property
+    def size(self) -> Tuple[int, int]:
+        image = self.radiance if self.radiance is not None else self.fused
+        return (image.shape[1], image.shape[0]) if image is not None else (0, 0)
+
+
+def merge_scene(paths: Sequence[str], options: Optional[MergeOptions] = None) -> MergedScene:
+    """Load, align and merge a bracket. The expensive stage.
+
+    Depends only on the structural options -- preview scale, alignment, camera
+    response, deghosting, reference frame, and whether the operator is fusion.
+    Changing a tone-mapping or grading setting does *not* require re-running it.
+    """
     options = options or MergeOptions()
     options.validate()
 
@@ -106,18 +143,14 @@ def merge_bracket(paths: Sequence[str], options: Optional[MergeOptions] = None) 
     reference = _pick_reference(frames, options.reference)
     log.info("Reference frame: %s", frames[reference].meta.name)
 
+    metas = [frame.meta for frame in frames]
     encoded = [frame.data for frame in frames]
     exposures = [frame.meta.relative_exposure for frame in frames]
 
     if options.tonemap == "fusion":
-        display = merge_module.exposure_fusion(encoded)
-        display = apply_display(display, options.adjustments)
-        return _write(
-            MergeResult(
-                metas=[f.meta for f in frames], reference=reference,
-                radiance=None, display=display, stats=None,
-            ),
-            paths[0], options,
+        return MergedScene(
+            metas=metas, reference=reference,
+            fused=merge_module.exposure_fusion(encoded),
         )
 
     aligned, _ = align_module.align(encoded, reference, options.align_method)
@@ -148,20 +181,49 @@ def merge_bracket(paths: Sequence[str], options: Optional[MergeOptions] = None) 
         "Merged %d frames spanning %.1f stops of dynamic range",
         stats.frames, stats.dynamic_range_stops,
     )
+    return MergedScene(metas=metas, reference=reference, radiance=radiance, stats=stats)
 
-    radiance = apply_linear(radiance, options.adjustments)
+
+def render(
+    scene: MergedScene,
+    options: Optional[MergeOptions] = None,
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Tone map and grade a merged scene. The cheap stage.
+
+    Returns ``(radiance, display)``, either of which may be None: fusion has no
+    radiance map, and tone mapping is skipped when only radiance formats were
+    asked for. An empty format list means "give me everything in memory", which
+    is what the GUI and library callers want.
+    """
+    options = options or MergeOptions()
+
+    if scene.is_fusion:
+        return None, apply_display(scene.fused, options.adjustments)
+
+    radiance = apply_linear(scene.radiance, options.adjustments)
 
     display = None
-    # An empty format list means "merge but write nothing" -- a library caller
-    # wanting the result in memory -- so it still needs the display image.
     if not options.formats or any(not writers.is_radiance(fmt) for fmt in options.formats):
         display = tonemap_module.tonemap(radiance, options.tonemap, options.gamma)
         display = apply_display(display, options.adjustments)
 
+    return radiance, display
+
+
+def merge_bracket(paths: Sequence[str], options: Optional[MergeOptions] = None) -> MergeResult:
+    """Merge one bracket and write the requested formats.
+
+    The public entry point of the library, and simply the two stages above run
+    back to back.
+    """
+    options = options or MergeOptions()
+    scene = merge_scene(paths, options)
+    radiance, display = render(scene, options)
+
     return _write(
         MergeResult(
-            metas=[f.meta for f in frames], reference=reference,
-            radiance=radiance, display=display, stats=stats,
+            metas=scene.metas, reference=scene.reference,
+            radiance=radiance, display=display, stats=scene.stats,
         ),
         paths[0], options,
     )

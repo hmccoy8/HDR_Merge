@@ -45,6 +45,38 @@ One other thing to watch: this installs `opencv-python-headless`. If your
 environment already has `opencv-python`, keep only one of the two — both provide
 the `cv2` module and whichever was installed last silently wins.
 
+## Desktop app
+
+```bash
+pip install "hdrmerge[gui]"
+hdrmerge-gui
+```
+
+Drop a bracket onto the window and it merges. The filmstrip shows every frame
+with its settings and detected EV — the same information `hdrmerge inspect`
+prints — so you can see at a glance which shot is which and whether the
+exposures were read from EXIF or estimated.
+
+Every command-line option is there, in three tabs:
+
+- **Tone** — the tone-mapping operator and all eleven grading controls, with
+  `Auto` and `Reset`.
+- **Merge** — alignment, response curve, reference frame, deghosting, preview
+  quality and the frame limit.
+- **Output** — the six formats, destination, filename suffix and JPEG quality.
+
+The preview updates as you drag a slider. That works because merging and
+grading are separate stages: the merge is cached, and moving a slider only
+re-runs tone mapping, which takes milliseconds. Dragging renders small and
+fast, then a full-quality render follows once you let go. Exports always run at
+full resolution regardless of the preview setting.
+
+Drop a **folder** and it detects every bracket in the shoot, previews the first
+and exports all of them.
+
+PySide6 ships abi3 wheels covering Python 3.10–3.14, so the GUI installs
+without a compiler on every version this package supports.
+
 ## Usage
 
 ```bash
@@ -252,10 +284,14 @@ intuitive.
 
 ```bash
 pip install -r requirements-dev.txt
+pip install "hdrmerge[gui]"     # only needed to run the GUI tests
 pytest
 ```
 
-Run both from the repository root — the requirements files install the package
+The GUI tests run against Qt's offscreen platform, so they need no display.
+They skip cleanly when PySide6 is not installed.
+
+Run these from the repository root — the requirements files install the package
 itself with `-e .`, which pip resolves relative to the working directory rather
 than to the file.
 
