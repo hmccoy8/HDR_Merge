@@ -14,7 +14,15 @@ from .grouping import Bracket, group_frames
 from .loaders import LoadError, Frame, load_bracket, load_frame
 from .merge import MergeError, MergeStats, exposure_fusion, merge_radiance
 from .metadata import FrameMeta, read_exif
-from .pipeline import MergeFallback, MergeOptions, MergeResult, merge_bracket
+from .pipeline import (
+    MergedScene,
+    MergeFallback,
+    MergeOptions,
+    MergeResult,
+    merge_bracket,
+    merge_scene,
+    render,
+)
 from .writers import FORMATS, WriteError
 
 __version__ = "0.1.0"
@@ -30,6 +38,7 @@ __all__ = [
     "MergeFallback",
     "MergeOptions",
     "MergeResult",
+    "MergedScene",
     "MergeStats",
     "WriteError",
     "__version__",
@@ -39,5 +48,7 @@ __all__ = [
     "load_frame",
     "merge_bracket",
     "merge_radiance",
+    "merge_scene",
+    "render",
     "read_exif",
 ]

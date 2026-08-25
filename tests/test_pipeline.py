@@ -7,7 +7,14 @@ import pytest
 import synthetic
 
 from conftest import requires_openexr
-from hdrmerge import Adjustments, MergeOptions, merge_bracket, writers
+from hdrmerge import (
+    Adjustments,
+    MergeOptions,
+    merge_bracket,
+    merge_scene,
+    render,
+    writers,
+)
 from hdrmerge.loaders import LoadError
 
 
@@ -158,6 +165,41 @@ def test_exposure_adjustment_brightens_the_result(tmp_path, bracket):
     ).display
 
     assert brighter.mean() > darker.mean()
+
+
+def test_the_two_stages_compose_into_the_same_result(tmp_path, bracket):
+    """merge_scene + render must equal merge_bracket, or the GUI would drift."""
+    settings = options(tmp_path, formats=[], adjustments=Adjustments.auto())
+
+    whole = merge_bracket(bracket, settings)
+    staged_radiance, staged_display = render(merge_scene(bracket, settings), settings)
+
+    assert np.allclose(whole.display, staged_display)
+    assert np.allclose(whole.radiance, staged_radiance)
+
+
+def test_rendering_twice_from_one_scene_gives_two_different_grades(tmp_path, bracket):
+    """The point of the split: re-grade without paying for another merge."""
+    settings = options(tmp_path, formats=[])
+    scene = merge_scene(bracket, settings)
+
+    _, plain = render(scene, options(tmp_path, formats=[]))
+    _, graded = render(tmp_path and scene, options(tmp_path, formats=[], adjustments=Adjustments.auto()))
+
+    assert not np.allclose(plain, graded)
+    # The cached scene must be reusable, not consumed by rendering it.
+    assert scene.radiance is not None and np.isfinite(scene.radiance).all()
+
+
+def test_a_merged_scene_reports_what_it_holds(tmp_path, bracket):
+    settings = options(tmp_path, formats=[])
+
+    radiance_scene = merge_scene(bracket, settings)
+    fusion_scene = merge_scene(bracket, options(tmp_path, formats=[], tonemap="fusion"))
+
+    assert not radiance_scene.is_fusion and radiance_scene.stats is not None
+    assert fusion_scene.is_fusion and fusion_scene.radiance is None
+    assert radiance_scene.size == (128, 96) == fusion_scene.size
 
 
 def test_merging_with_no_formats_still_returns_the_images(tmp_path, bracket):

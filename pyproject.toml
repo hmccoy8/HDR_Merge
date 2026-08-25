@@ -36,6 +36,9 @@ dependencies = [
 # EXR output. Installed automatically wherever wheels exist (see the marker
 # above); this extra is the explicit opt-in everywhere else.
 exr = ["OpenEXR>=3.3"]
+# The desktop GUI. PySide6 ships abi3 wheels covering Python 3.10-3.14, so this
+# installs cleanly on every version the package supports.
+gui = ["PySide6>=6.6"]
 # piexif builds the synthetic EXIF-carrying brackets the tests merge. OpenEXR is
 # deliberately absent: including it would make the dev install fail on 3.14 for
 # exactly the reason the marker above exists. Tests that write EXR skip without it.
@@ -46,6 +49,9 @@ Homepage = "https://github.com/hmccoy8/HDR_Merge"
 
 [project.scripts]
 hdrmerge = "hdrmerge.cli:main"
+
+[project.gui-scripts]
+hdrmerge-gui = "hdrmerge.gui.app:main"
 
 [tool.setuptools.packages.find]
 include = ["hdrmerge*"]
