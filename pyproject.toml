@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hdrmerge"
+version = "0.1.0"
+description = "Merge bracketed exposures into an HDR photograph"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Hunter McCoy" }]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.23",
+    "opencv-python-headless>=4.6",
+    "Pillow>=9.0",
+    "exifread>=3.0",
+    "rawpy>=0.18",
+    "tifffile>=2022.5.4",
+    "OpenEXR>=3.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/hmccoy8/HDR_Merge"
+
+[project.scripts]
+hdrmerge = "hdrmerge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hdrmerge*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
