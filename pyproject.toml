@@ -12,16 +12,23 @@ authors = [{ name = "Hunter McCoy" }]
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.23",
-    "opencv-python-headless>=4.6",
-    "Pillow>=9.0",
+    # 4.10.0.84 is the first release built against the numpy 2 ABI;
+    # earlier ones fail to import entirely alongside numpy>=2.
+    "opencv-python-headless>=4.10.0.84",
+    # 9.3.0 is the first release with wheels for Python 3.11;
+    # 9.0 has none and falls back to a source build that fails.
+    "Pillow>=9.3",
     "exifread>=3.0",
     "rawpy>=0.18",
     "tifffile>=2022.5.4",
-    "OpenEXR>=3.2",
+    # 3.3.0 introduced the OpenEXR.File API that writers.py uses;
+    # the 3.2 series ships only the legacy InputFile/OutputFile one.
+    "OpenEXR>=3.3",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+# piexif builds the synthetic EXIF-carrying brackets the tests merge.
+dev = ["pytest>=7.0", "piexif>=1.1.3"]
 
 [project.urls]
 Homepage = "https://github.com/hmccoy8/HDR_Merge"

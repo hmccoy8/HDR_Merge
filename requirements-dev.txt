@@ -1,0 +1,5 @@
+# Development dependencies: everything above, plus what the test suite needs.
+#
+#   pip install -r requirements-dev.txt
+#   pytest
+-e .[dev]
