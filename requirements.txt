@@ -1,0 +1,11 @@
+# Runtime dependencies for hdrmerge.
+#
+#   pip install -r requirements.txt
+#
+# The authoritative list lives in pyproject.toml; installing the package itself
+# pulls it in, so this file and that one cannot drift apart.
+#
+# Note this brings in opencv-python-headless. If your environment already has
+# opencv-python, keep only one of the two: both provide the `cv2` module, and
+# whichever was installed last silently wins.
+-e .

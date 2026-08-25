@@ -15,11 +15,19 @@ hdrmerge merge IMG_000{1,2,3}.CR2 --auto
 ## Install
 
 ```bash
-pip install -e .
+pip install -r requirements.txt
 ```
+
+Or, equivalently, `pip install -e .` — the requirements file is a thin wrapper
+around the package's own dependency list in `pyproject.toml`, so there is only
+one list to keep correct.
 
 Requires Python 3.9+. Camera RAW support comes from LibRaw via `rawpy`, which
 ships as a wheel on Linux, macOS and Windows — no system libraries to install.
+
+One thing to watch: this installs `opencv-python-headless`. If your environment
+already has `opencv-python`, keep only one of the two — both provide the `cv2`
+module and whichever was installed last silently wins.
 
 ## Usage
 
@@ -227,9 +235,20 @@ intuitive.
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt
 pytest
 ```
+
+Run both from the repository root — the requirements files install the package
+itself with `-e .`, which pip resolves relative to the working directory rather
+than to the file.
+
+Dependencies carry minimum bounds rather than exact pins, so hdrmerge installs
+alongside your own packages. Two of those bounds are load-bearing and verified
+against the suite: `opencv-python-headless>=4.10.0.84` (earlier releases were
+built against the numpy 1 ABI and cannot import under numpy 2) and
+`OpenEXR>=3.3` (the `OpenEXR.File` API that `writers.py` uses does not exist in
+the 3.2 series).
 
 The test suite builds synthetic brackets from scenes whose true radiance is known,
 so merge accuracy is checked against ground truth in stops rather than eyeballed.
