@@ -25,9 +25,25 @@ one list to keep correct.
 Requires Python 3.9+. Camera RAW support comes from LibRaw via `rawpy`, which
 ships as a wheel on Linux, macOS and Windows — no system libraries to install.
 
-One thing to watch: this installs `opencv-python-headless`. If your environment
-already has `opencv-python`, keep only one of the two — both provide the `cv2`
-module and whichever was installed last silently wins.
+### Python 3.14 and EXR output
+
+OpenEXR publishes wheels only up to Python 3.13. On 3.14 it is skipped
+automatically, so hdrmerge installs with no compiler — but `--format exr` is
+then unavailable and says so, up front, naming what to use instead. Nothing else
+is affected: `tif32` and `hdr` both hold the same 32-bit linear radiance.
+
+To add EXR back — once upstream ships 3.14 wheels, or if you have CMake and a
+C++ toolchain:
+
+```bash
+pip install "hdrmerge[exr]"
+```
+
+On Python 3.9–3.13 it installs automatically and all six formats work.
+
+One other thing to watch: this installs `opencv-python-headless`. If your
+environment already has `opencv-python`, keep only one of the two — both provide
+the `cv2` module and whichever was installed last silently wins.
 
 ## Usage
 
@@ -140,7 +156,7 @@ tone mapped** — preserving the linear data is the entire point of them.
 | `png16` | 16-bit, tone-mapped | Lossless delivery |
 | `tif16` | 16-bit, tone-mapped | Handing to Lightroom or Photoshop for further editing |
 | `tif32` | 32-bit float, **linear** | Radiance map in a familiar container |
-| `exr` | OpenEXR 32-bit float, **linear** | Compositing and grading elsewhere |
+| `exr` | OpenEXR 32-bit float, **linear** | Compositing and grading elsewhere (needs the `exr` extra on Python 3.14 — see [Install](#install)) |
 | `hdr` | Radiance RGBE, **linear** | Compact interchange with 3D tools |
 
 Outputs are named after the bracket's first frame: `IMG_0001_hdr.jpg`. The

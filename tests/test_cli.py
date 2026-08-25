@@ -6,6 +6,7 @@ import os
 import pytest
 import synthetic
 
+from conftest import requires_openexr
 from hdrmerge.cli import main
 
 
@@ -34,6 +35,7 @@ def test_merge_writes_an_output(tmp_path, bracket):
     assert os.listdir(out) == ["IMG_0001_hdr.jpg"]
 
 
+@requires_openexr
 def test_repeated_format_flags_write_every_format(tmp_path, bracket):
     out = str(tmp_path / "out")
 
