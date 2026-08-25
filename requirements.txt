@@ -5,6 +5,11 @@
 # The authoritative list lives in pyproject.toml; installing the package itself
 # pulls it in, so this file and that one cannot drift apart.
 #
+# On Python 3.14 this skips OpenEXR, which publishes no wheel for that version
+# yet -- everything installs, but `--format exr` is unavailable until you run
+# `pip install "hdrmerge[exr]"`. Use `--format tif32` or `--format hdr` for
+# 32-bit linear radiance in the meantime.
+#
 # Note this brings in opencv-python-headless. If your environment already has
 # opencv-python, keep only one of the two: both provide the `cv2` module, and
 # whichever was installed last silently wins.

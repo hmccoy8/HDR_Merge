@@ -21,13 +21,24 @@ dependencies = [
     "exifread>=3.0",
     "rawpy>=0.18",
     "tifffile>=2022.5.4",
-    # 3.3.0 introduced the OpenEXR.File API that writers.py uses;
-    # the 3.2 series ships only the legacy InputFile/OutputFile one.
-    "OpenEXR>=3.3",
+    # 3.3.0 introduced the OpenEXR.File API that writers.py uses; the 3.2
+    # series ships only the legacy InputFile/OutputFile one.
+    #
+    # The marker matters: OpenEXR publishes wheels only up to cp313, so on 3.14
+    # pip falls back to a source build needing CMake and a C++ toolchain, and
+    # one optional output format takes the whole install down with it. Skipping
+    # it there keeps hdrmerge installable; `pip install "hdrmerge[exr]"` adds it
+    # back for anyone who has a toolchain, or once upstream ships wheels.
+    "OpenEXR>=3.3; python_version < '3.14'",
 ]
 
 [project.optional-dependencies]
-# piexif builds the synthetic EXIF-carrying brackets the tests merge.
+# EXR output. Installed automatically wherever wheels exist (see the marker
+# above); this extra is the explicit opt-in everywhere else.
+exr = ["OpenEXR>=3.3"]
+# piexif builds the synthetic EXIF-carrying brackets the tests merge. OpenEXR is
+# deliberately absent: including it would make the dev install fail on 3.14 for
+# exactly the reason the marker above exists. Tests that write EXR skip without it.
 dev = ["pytest>=7.0", "piexif>=1.1.3"]
 
 [project.urls]

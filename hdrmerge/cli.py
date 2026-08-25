@@ -23,7 +23,7 @@ from .loaders import LoadError, expand_inputs, load_frame
 from .metadata import estimate_relative_exposures, read_exif, resolve_exposures
 from .pipeline import MergeFallback, MergeOptions, merge_bracket
 from .tonemap import OPERATORS as TONEMAP_OPERATORS
-from .writers import FORMATS, WriteError
+from .writers import FORMATS, WriteError, available
 
 log = logging.getLogger("hdrmerge")
 
@@ -53,7 +53,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _epilog() -> str:
-    formats = "\n".join(f"    {key:<6} {spec[2]}" for key, spec in FORMATS.items())
+    formats = "\n".join(
+        f"    {key:<6} {spec[2]}" + ("" if available(key) else "  [unavailable here]")
+        for key, spec in FORMATS.items()
+    )
     return (
         "output formats:\n" + formats + "\n\n"
         "examples:\n"

@@ -65,6 +65,17 @@ class MergeOptions:
                     "directly and never builds a radiance map. Use a radiance "
                     "operator (reinhard, drago, mantiuk, linear) for those formats."
                 )
+
+        # Checked last, and deliberately after the conflicts above: those are
+        # wrong no matter where they run, so they should report the same thing
+        # on every machine. Missing-backend is a property of this environment.
+        # Still ahead of any merging though -- discovering a missing writer
+        # after a 20-bracket batch has run wastes the user's time.
+        for fmt in self.formats:
+            reason = writers.unavailable_reason(fmt)
+            if reason:
+                raise ValueError(reason)
+
         if not 0 < self.preview_scale <= 1.0:
             raise ValueError(f"--preview-scale must be in (0, 1], got {self.preview_scale}")
 

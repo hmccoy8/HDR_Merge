@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import synthetic
 
+from conftest import requires_openexr
 from hdrmerge import Adjustments, MergeOptions, merge_bracket, writers
 from hdrmerge.loaders import LoadError
 
@@ -21,6 +22,7 @@ def options(tmp_path, **overrides):
     return MergeOptions(**settings)
 
 
+@requires_openexr
 def test_merge_writes_the_requested_formats(tmp_path, bracket):
     result = merge_bracket(bracket, options(tmp_path, formats=["jpg", "exr", "tif16"]))
 
@@ -31,6 +33,8 @@ def test_merge_writes_the_requested_formats(tmp_path, bracket):
 
 @pytest.mark.parametrize("fmt", sorted(writers.FORMATS))
 def test_every_format_writes_a_readable_file(tmp_path, bracket, fmt):
+    if not writers.available(fmt):
+        pytest.skip(f"{fmt} needs an optional dependency that is not installed")
     result = merge_bracket(tmp_path and bracket, options(tmp_path, formats=[fmt]))
 
     assert len(result.written) == 1
@@ -53,6 +57,7 @@ def _read_back(path, fmt):
     return cv2.imread(path, cv2.IMREAD_UNCHANGED)
 
 
+@requires_openexr
 def test_radiance_formats_keep_linear_data_and_display_formats_do_not(tmp_path, bracket):
     """The distinction the whole writer split exists for."""
     result = merge_bracket(tmp_path and bracket, options(tmp_path, formats=["exr", "jpg"]))
@@ -165,6 +170,7 @@ def test_merging_with_no_formats_still_returns_the_images(tmp_path, bracket):
     assert not os.path.exists(str(tmp_path / "out"))
 
 
+@requires_openexr
 def test_requesting_only_radiance_skips_tone_mapping(tmp_path, bracket):
     result = merge_bracket(tmp_path and bracket, options(tmp_path, formats=["exr"]))
 
@@ -205,6 +211,38 @@ def test_identical_exposures_are_not_a_bracket(tmp_path):
 
     with pytest.raises(LoadError, match="same exposure"):
         merge_bracket(paths, options(tmp_path))
+
+
+def test_exr_without_openexr_names_the_alternatives(tmp_path, bracket, monkeypatch):
+    """The Python 3.14 path: OpenEXR cannot be installed, so say what to use.
+
+    Blocking the module through sys.modules makes both plain `import` and
+    importlib.import_module raise, so the validation check and the writer see
+    the same thing a machine with no OpenEXR wheel would.
+    """
+    import sys
+
+    monkeypatch.setitem(sys.modules, "OpenEXR", None)
+
+    with pytest.raises(ValueError) as failure:
+        merge_bracket(bracket, options(tmp_path, formats=["exr"]))
+
+    message = str(failure.value)
+    assert "tif32" in message and "hdr" in message
+    assert "hdrmerge[exr]" in message
+
+
+def test_formats_needing_nothing_extra_are_always_available():
+    """Only EXR may be missing; the other five must never need an extra."""
+    for fmt in sorted(writers.FORMATS):
+        if fmt != "exr":
+            assert writers.available(fmt), f"{fmt} should not depend on an extra"
+
+
+def test_a_radiance_format_is_available_without_openexr():
+    """The promise the EXR error message makes has to actually hold."""
+    assert writers.available("tif32") and writers.available("hdr")
+    assert writers.is_radiance("tif32") and writers.is_radiance("hdr")
 
 
 def test_unknown_format_is_rejected_before_any_work_happens(tmp_path, bracket):

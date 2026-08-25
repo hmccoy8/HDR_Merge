@@ -14,6 +14,7 @@ linear data into a display format.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from typing import Dict, Optional
@@ -35,9 +36,46 @@ FORMATS: Dict[str, tuple] = {
 RADIANCE_FORMATS = frozenset(key for key, spec in FORMATS.items() if spec[1])
 DISPLAY_FORMATS = frozenset(key for key, spec in FORMATS.items() if not spec[1])
 
+#: Formats whose backing library is optional, and the module each one needs.
+#: Only EXR is optional today -- OpenEXR publishes no wheel for Python 3.14, and
+#: making that take down the whole install would be absurd for one writer among
+#: six. Written as a table so a future optional writer slots in without new
+#: plumbing.
+OPTIONAL_BACKENDS = {"exr": "OpenEXR"}
+
+_EXR_HELP = (
+    'Writing EXR needs the OpenEXR package, which has no wheel for Python 3.14 '
+    'yet, so pip cannot install it there without CMake and a C++ compiler.\n'
+    '  - Install it anyway:  pip install "hdrmerge[exr]"  (needs that toolchain)\n'
+    "  - Or use --format tif32 or --format hdr: both hold the same 32-bit "
+    "linear radiance and need nothing extra."
+)
+
 
 class WriteError(RuntimeError):
     """Raised when an output file cannot be produced."""
+
+
+def unavailable_reason(fmt: str) -> Optional[str]:
+    """Why ``fmt`` cannot be written here, or None if it can.
+
+    Checked up front rather than at write time so a long batch fails in the
+    first second instead of after every bracket has been merged.
+    """
+    _check(fmt)
+    module = OPTIONAL_BACKENDS.get(fmt)
+    if module is None:
+        return None
+    try:
+        importlib.import_module(module)
+    except ImportError:
+        return _EXR_HELP if fmt == "exr" else f"Writing {fmt} needs the {module} package"
+    return None
+
+
+def available(fmt: str) -> bool:
+    """Whether ``fmt`` can actually be written in this environment."""
+    return unavailable_reason(fmt) is None
 
 
 def is_radiance(fmt: str) -> bool:
@@ -142,10 +180,8 @@ def _write_exr(image: np.ndarray, path: str, quality: int) -> None:
     # used instead of cv2.imwrite here.
     try:
         import OpenEXR
-    except ImportError as exc:  # pragma: no cover - declared dependency
-        raise WriteError(
-            "Writing EXR needs the OpenEXR package: pip install OpenEXR"
-        ) from exc
+    except ImportError as exc:
+        raise WriteError(_EXR_HELP) from exc
 
     header = {"compression": OpenEXR.ZIP_COMPRESSION, "type": OpenEXR.scanlineimage}
     exr = OpenEXR.File(header, {"RGB": np.ascontiguousarray(image, dtype=np.float32)})
